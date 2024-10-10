@@ -33,36 +33,27 @@ export default class RadioComponent extends ListComponent {
     return {
       ...super.conditionOperatorsSettings,
       valueComponent(classComp) {
-        return {
-          type: 'select',
-          dataSrc: 'custom',
-          valueProperty: 'value',
-          dataType: classComp.dataType || '',
-          data: {
-            custom() {
-              return classComp.values;
+        const isValuesSrc = !classComp.dataSrc || classComp.dataSrc === 'values';
+        return isValuesSrc
+          ? {
+              type: 'select',
+              dataSrc: 'custom',
+              valueProperty: 'value',
+              dataType: classComp.dataType || '',
+              data: {
+                custom: `values = ${classComp && classComp.values ? JSON.stringify(classComp.values) : []}`,
+              }
             }
-          },
-        };
+          : {
+              ...classComp,
+              type: 'select',
+            }
       }
     };
   }
 
   static get serverConditionSettings() {
-    return {
-      ...super.serverConditionSettings,
-      valueComponent(classComp) {
-        return {
-          type: 'select',
-          dataSrc: 'custom',
-          valueProperty: 'value',
-          dataType: classComp.dataType || '',
-          data: {
-            custom: `values = ${classComp && classComp.values ? JSON.stringify(classComp.values) : []}`,
-          },
-        };
-      },
-    };
+    return RadioComponent.conditionOperatorsSettings;
   }
 
   static savedValueTypes(schema) {
@@ -100,6 +91,15 @@ export default class RadioComponent extends ListComponent {
       defaultValue = this.component.defaultValue;
     }
     return defaultValue;
+  }
+
+  resetValue() {
+    this.unset();
+    this.setValue(this.emptyValue, {
+      noUpdateEvent: true,
+      noValidate: true,
+      resetValue: true
+    });
   }
 
   get inputInfo() {
@@ -151,18 +151,30 @@ export default class RadioComponent extends ListComponent {
       }
       return triggerUpdate(...updateArgs);
     };
-
     this.itemsLoaded = new Promise((resolve) => {
       this.itemsLoadedResolve = resolve;
     });
-    this.optionsLoaded = false;
+    this.optionsLoaded = !this.component.dataSrc || this.component.dataSrc === 'values';
     this.loadedOptions = [];
+
+    if (!this.visible) {
+      this.itemsLoadedResolve();
+    }
 
     // Get the template keys for this radio component.
     this.getTemplateKeys();
   }
 
+  beforeSubmit() {
+    return new Promise(res => {
+      this.dataReady.then(() => res(true));
+    });
+  }
+
   render() {
+    if (!this.optionsLoaded) {
+      return super.render(this.renderTemplate('loader'));
+    }
     return super.render(this.renderTemplate('radio', {
       input: this.inputInfo,
       inline: this.component.inline,
@@ -254,7 +266,7 @@ export default class RadioComponent extends ListComponent {
       return true;
     }
 
-    const values = this.component.values;
+    const values = this.component.dataSrc === 'values' ? this.component.values : this.loadedOptions;
     if (values) {
       return values.findIndex(({ value: optionValue }) => this.normalizeValue(optionValue) === value) !== -1;
     }
@@ -292,13 +304,25 @@ export default class RadioComponent extends ListComponent {
     }
   }
 
+  get shouldLoad() {
+    // do not load options if the value is empty in readOnly and we have options available in metadata
+    if (this.options.readOnly && this.isEmpty() && this.listData) {
+      return false;
+    }
+
+    return super.shouldLoad;
+  }
+
   loadItems(url, search, headers, options, method, body) {
     if (this.optionsLoaded) {
+      this.itemsLoadedResolve();
       return;
     }
 
     if (!this.shouldLoad && this.listData) {
       this.loadItemsFromMetadata();
+      this.itemsLoadedResolve();
+      this.optionsLoaded = true;
       return;
     }
 
@@ -307,6 +331,18 @@ export default class RadioComponent extends ListComponent {
     if (method.toUpperCase() === 'GET') {
       body = null;
     }
+
+    const limit = this.component.limit || 100;
+    const skip = this.isScrollLoading ? this.selectOptions.length : 0;
+
+    // Allow for url interpolation.
+    url = this.sanitize(this.interpolate(url, {
+      formioBase: Formio.getBaseUrl(),
+      search,
+      limit,
+      skip,
+      page: Math.abs(Math.floor(skip / limit))
+    }), this.shouldSanitizeValue);
 
     // Set ignoreCache if it is
     options.ignoreCache = this.component.ignoreCache;
@@ -322,8 +358,9 @@ export default class RadioComponent extends ListComponent {
       this.redraw();
     })
     .catch((err) => {
+      this.optionsLoaded = true;
       this.handleLoadingError(err);
-      });
+    });
   }
 
   loadItemsFromMetadata() {
@@ -368,6 +405,8 @@ export default class RadioComponent extends ListComponent {
       }
       _.set(submission.metadata.listData, this.path, listData);
     }
+
+    this.itemsLoadedResolve();
   }
 
   setSelectedClasses() {

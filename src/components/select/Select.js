@@ -176,19 +176,6 @@ export default class SelectComponent extends ListComponent {
     this.getTemplateKeys();
   }
 
-  get dataReady() {
-    // If the root submission has been set, and we are still not attached, then assume
-    // that our data is ready.
-    if (
-      this.root &&
-      this.root.submissionSet &&
-      !this.attached
-    ) {
-      return Promise.resolve();
-    }
-    return this.itemsLoaded;
-  }
-
   get defaultSchema() {
     return SelectComponent.schema();
   }
@@ -279,10 +266,9 @@ export default class SelectComponent extends ListComponent {
 
   selectValueAndLabel(data) {
     const value = this.getOptionValue((this.isEntireObjectDisplay() && !this.itemValue(data)) ? data : this.itemValue(data));
-    const readOnlyResourceLabelData = this.options.readOnly && (this.component.dataSrc === 'resource' || this.component.dataSrc === 'url') && this.selectData;
     return {
       value,
-      label: this.itemTemplate((this.isEntireObjectDisplay() && !_.isObject(data.data)) ? { data: data } : readOnlyResourceLabelData || data, value)
+      label: this.itemTemplate((this.isEntireObjectDisplay() && !_.isObject(data.data)) ? { data: data } : data, value)
     };
   }
 
@@ -302,7 +288,12 @@ export default class SelectComponent extends ListComponent {
       return this.sanitize(value, this.shouldSanitizeValue);
     }
 
-    if (this.component.multiple && _.isArray(this.dataValue) ? this.dataValue.find((val) => value === val) : (this.dataValue === value)) {
+    // Inside DataTable component won't have dataValue set
+    const shouldUseSelectData = (this.component.multiple && _.isArray(this.dataValue)
+      ? this.dataValue.find((val) => this.normalizeSingleValue(value) === val)
+      : (this.dataValue === this.normalizeSingleValue(value))) || this.inDataTable;
+
+    if (shouldUseSelectData) {
       const selectData = this.selectData;
       if (selectData) {
         const templateValue = this.component.reference && value?._id ? value._id.toString() : value;
@@ -631,13 +622,13 @@ export default class SelectComponent extends ListComponent {
     };
 
     // Allow for url interpolation.
-    url = this.interpolate(url, {
+    url = this.sanitize(this.interpolate(url, {
       formioBase: Formio.getBaseUrl(),
       search,
       limit,
       skip,
       page: Math.abs(Math.floor(skip / limit))
-    });
+    }), this.shouldSanitizeValue);
 
     // Add search capability.
     if (this.component.searchField && search) {
@@ -1475,7 +1466,7 @@ export default class SelectComponent extends ListComponent {
     // Check to see if we need to save off the template data into our metadata.
     const templateValue = this.component.reference && value?._id ? value._id.toString() : value;
     const shouldSaveData = !valueIsObject || this.component.reference;
-    if (templateValue && shouldSaveData && this.templateData && this.templateData[templateValue] && this.root?.submission) {
+    if (!_.isNil(templateValue) && shouldSaveData && this.templateData && this.templateData[templateValue] && this.root?.submission) {
       const submission = this.root.submission;
       if (!submission.metadata) {
         submission.metadata = {};
@@ -1514,6 +1505,25 @@ export default class SelectComponent extends ListComponent {
     return changed;
   }
 
+  undoValueTyping(value) {
+    let untypedValue = value;
+    if (this.component.multiple && Array.isArray(value)) {
+      untypedValue = value.map(v => {
+        if (typeof v === 'boolean' || typeof v === 'number') {
+          return v.toString();
+        }
+        return v;
+      });
+    }
+    else {
+      if (typeof value === 'boolean' || typeof value === 'number') {
+        untypedValue = value.toString();
+      }
+    }
+
+    return untypedValue;
+  }
+
   setValue(value, flags = {}) {
     const previousValue = this.dataValue;
     const changed = this.updateValue(value, flags);
@@ -1525,19 +1535,7 @@ export default class SelectComponent extends ListComponent {
     const hasValue = !this.isEmpty(value);
 
     // Undo typing when searching to set the value.
-    if (this.component.multiple && Array.isArray(value)) {
-      value = value.map(value => {
-        if (typeof value === 'boolean' || typeof value === 'number') {
-          return value.toString();
-        }
-        return value;
-      });
-    }
-    else {
-      if (typeof value === 'boolean' || typeof value === 'number') {
-        value = value.toString();
-      }
-    }
+    value = this.undoValueTyping(value);
 
     if (this.isHtmlRenderMode() && flags && flags.fromSubmission && changed) {
       this.itemsLoaded.then(() => {
@@ -1630,14 +1628,6 @@ export default class SelectComponent extends ListComponent {
     }
   }
 
-  get itemsLoaded() {
-    return this._itemsLoaded || Promise.resolve();
-  }
-
-  set itemsLoaded(promise) {
-    this._itemsLoaded = promise;
-  }
-
   validateValueAvailability(setting, value) {
     if (!boolValue(setting) || !value) {
       return true;
@@ -1704,6 +1694,9 @@ export default class SelectComponent extends ListComponent {
       case 'custom':
         rawItems = this.getCustomItems();
         break;
+      case 'url':
+        rawItems = this.selectItems;
+        break;
     }
 
     if (typeof rawItems === 'string') {
@@ -1763,9 +1756,13 @@ export default class SelectComponent extends ListComponent {
   asString(value, options = {}) {
     value = value ?? this.getValue();
 
-    if (options.modalPreview && this.selectData) {
-      const { label } = this.selectValueAndLabel(value);
-      return label;
+    if (options.modalPreview || this.inDataTable) {
+      if (this.inDataTable) {
+        value = this.undoValueTyping(value);
+      }
+     const templateValue = (this.isEntireObjectDisplay() && !_.isObject(value.data)) ? { data: value } : value;
+      const template = this.itemTemplate(templateValue, value, options);
+      return template;
     }
     //need to convert values to strings to be able to compare values with available options that are strings
     const convertToString = (data, valueProperty) => {
@@ -1773,7 +1770,7 @@ export default class SelectComponent extends ListComponent {
         if (Array.isArray(data)) {
           data.forEach((item) => item[valueProperty] = item[valueProperty].toString());
         }
-        else {
+        else if (_.isObject(data)) {
           data[valueProperty] = data[valueProperty].toString();
         }
         return data;
@@ -1784,11 +1781,7 @@ export default class SelectComponent extends ListComponent {
       }
 
       if (Array.isArray(data) && data.some(item => this.isBooleanOrNumber(item))) {
-        data = data.map(item => {
-          if (this.isBooleanOrNumber(item)) {
-            item = item.toString();
-          }
-        });
+        data = data.map(item => this.isBooleanOrNumber(item) ? item.toString() : item);
       }
 
       return data;
@@ -1817,7 +1810,7 @@ export default class SelectComponent extends ListComponent {
       };
       value = (this.component.multiple && Array.isArray(value))
         ? _.filter(items, (item) => value.includes(item.value))
-        : valueProperty
+        : (valueProperty && items)
           ? getFromValues() ?? { value, label: value }
           : value;
     }
@@ -1868,8 +1861,8 @@ export default class SelectComponent extends ListComponent {
   }
 
   focus() {
+    super.focus.call(this);
     if (this.focusableElement) {
-      super.focus.call(this);
       this.focusableElement.focus();
     }
   }

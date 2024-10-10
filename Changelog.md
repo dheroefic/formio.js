@@ -42,7 +42,74 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - FIO-8570: fixed thousandSeparator problem and decimal symbol problem
  - FIO-8710: fixed incorrect Components import that causes errors when interacting with form components
  - FIO-8801: fixed submission metadata nullish
- - FIO-8809: fixed runtime error in setForm when passing string argument to Formio.builder 
+ - FIO-8809: fixed runtime error in setForm when passing string argument to Formio.builder
+ - FIO-8684: Fixes cannot attach more than one component to the PDF form
+ - FIO-8719: fixed validation for Data Grid component inside nested wizard
+ - FIO-8621: added error event on file upload
+ - FIO-8799 updated conditional tab for Time Component
+ - FIO-6495: fixed an issue where revision ID of nested form does not transfer from stage to stage
+ - FIO-8797: set empty day component value to the empty string
+ - FIO-8729: fixed an issue where the rollback to default templates does not work correctly and unknown template message is shown
+ - FIO-8668: fixed an issue where reportingUI form is available is the existing resources in builder
+ - FIO-8714: Bugfix: allow paths for valueProperty
+ - FIO-8795: fixed selected data after removing row
+ - FIO-8771: Included File Component in Review Page Component
+ - FIO-8789: Fixing issues where the wrong urls are used for CDN on remote env
+ - FIO-7524: Added back aspect ratio option to Signature
+ - FIO-8798: updated shape of the data of day component with hidden fields
+ - FIO-8760: Fixes an issue where nested form is not getting all the options
+ - FIO-8706: allow data interpolation for data source in components
+ - FIO-8849: fixed an issue where value of the selctboxes/radio with URL data source are not available in simple conditons UI
+ - FIO-8874: fixed conditional value field for time component
+ - FIO-8931: Disable file synchronization feature
+ - FIO-8458: removing row from data grid triggers save draft action
+ - FIO-8912: consolidate normalization for multivalue components
+ - FIO-8423: change default parent tag from p to div
+ - FIO-8375: allow date time to have manual input
+ - FIO-8912: fix normalization in submission
+ - FIO-8912: updated to model types
+ - FIO-8972: fixed display of select componet with custom dataSrc on Data Tab
+ - FIO-8954: fixed previously selected option is displayed in metadata with data source = url
+ - FIO-8986: fixed setting up of default value with hidden fields
+ - FIO-8938: fixed label display for multiple select with dataSrc resource
+ - FIO-8962: fixed screen shifting when validation errors pop up in an embedded Wizard form
+ - FIO-8234/FIO-7195: Fixes an issue where value properties are shown instead of labels for Select component with Resource/URL data sources in read only mode and for modal preview
+ - FIO-8986: fixed setting default value for day component with hidden day and month
+ - FIO-8719: fixed error message display for nested wizard components
+ - FIO-9080 checkbox radio validation error
+ - FIO-9147: fixed an issue where the simple conditionally visible component is not validated on change
+ - FIO-9056: Fix enabling multiple values for address component
+ - FIO-9059: fixed an issue where the value for textarea with json datatype is not normalized and set correctly
+ - FIO-9075: fixed an issue where the form cannot be resubmitted if it has server errors
+ - FIO-9097 fixed navigation through the errors list
+ - FIO-8553: Replaced flatpickr-formio dependency with standard flatpickr
+ - FIO-8569: Fix sdk link
+ - FIO-8948-8950: fixed an issue where radio and select boxes with url type do not display in PDF download
+ - FIO-9034 fixed creating extra submit button
+ - FIO-8908: Fix error message appears when saving not fully filled conditionals tab
+ - FIO-8951: Updated conditions for selectData and added logic to clear selectData
+ - FIO-8556: Test coverage metrics
+ - FIO-9010: tighten up multivalue normalization by covering 'any' type models
+ - FIO-9010 fixed disappearance of components inside Columns after editing
+ - FIO-8991: fixed an issue where select value (when it is array with numbers) does not display in submission grid
+ - Fixed an issue where the 'root' may be the component that does not have a getComponent method
+ - FIO-8920 fixed errors list for the form with nested wizard
+ - FIO-8914: fixed an issue where errors list doesnot appear when submitting a PDF form
+ - FIO-8990: fixed incorrect moment export
+ - FIO-7778: validation link does not open modal
+ - FIO-8900-8899: made only 2 operators available for address component in conditionals ui and fixed setting an empty value for address
+ - FIO-8914: fixed an issue where select url does not work properly when url value has whitespaces at the end
+ - FIO-8970 resolved failing test
+ - FIO-8921: fixed an issue where newly created PDF-form cannot be saved in builder after adding some components in it
+ - FIO-8866-8864: fixed simple conditions operators for recaptcha
+ - FIO-9158: fixed an issue where Password component error message persists to displayed in Edit page
+ - FIO-9126: fixed display of value for Day component with hidden fields
+ - FIO-9158: fixed password component error in Edit page
+ - FIO-9127 fixed saving empty values for Day component with hidden fields
+ - FIO-9153-9154: fixed console errors when navigating tagpad validation errors
+ - FIO-9127 fixed saving an empty value for day component after deleting values
+ - FIO-9120: Fix issue with unchecking radio default value
+ - FIO-7195/FIO-8234: Fixes an issue where Select renders value properties instead of labels in DataTable 
 
 ### New Features
 

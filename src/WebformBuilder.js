@@ -220,7 +220,8 @@ export default class WebformBuilder extends Component {
       params: {
         type: 'resource',
         limit: 1000000,
-        select: '_id,title,name,components'
+        select: '_id,title,name,components',
+        'tags__ne': 'noBuilderResource'
       }
     };
     if (this.options && this.options.resourceTag) {
@@ -1051,8 +1052,12 @@ export default class WebformBuilder extends Component {
     }
     this.keyboardActionsEnabled = keyboardActionsEnabled;
 
+    const isSubmitButton = (comp) => {
+      return (comp.type === 'button') && ((comp.action === 'submit') || !comp.action);
+    }
+
     const isShowSubmitButton = !this.options.noDefaultSubmitButton
-      && (!form.components.length || !form.components.find(comp => comp.key === 'submit'));
+      && (!form.components.length || !form.components.find(comp => isSubmitButton(comp)));
 
     // Ensure there is at least a submit button.
     if (isShowSubmitButton) {

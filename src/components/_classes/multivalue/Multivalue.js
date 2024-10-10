@@ -1,14 +1,49 @@
 import Field from '../field/Field';
 import _ from 'lodash';
+import { Utils } from '@formio/core';
 
 export default class Multivalue extends Field {
-  get dataValue() {
-    const parent = super.dataValue;
+  /**
+   * Normalize values coming into updateValue.
+   * @param {*} value - The value to normalize before setting.
+   * @param {object} flags - Flags to use when normalizing the value.
+   * @param {*} emptyValue - The empty value for the field.
+   * @returns {*} - The normalized value.
+   */
+  normalizeValue(value, flags = {}, emptyValue = this.emptyValue) {
+    const underlyingValueShouldBeArray = Utils.getModelType(this.component) === 'array' || this.component.storeas === 'array' || Array.isArray(emptyValue);
+    if (this.component.multiple) {
+      if (Array.isArray(value)) {
+        if (underlyingValueShouldBeArray) {
+          if (value.length === 0 || !Array.isArray(value[0])) {
+            return [value];
+          }
+        }
+        if (value.length === 0) {
+          return [emptyValue];
+        }
 
-    if (!parent && this.component.multiple) {
-      return [];
+        return super.normalizeValue(value, flags);
+      } else {
+        return super.normalizeValue(value == null ? [emptyValue] : [value], flags);
+      }
+    } else {
+      if (Array.isArray(value) && !underlyingValueShouldBeArray) {
+        if (Utils.getModelType(this.component) === 'any') {
+          return super.normalizeValue(value, flags);
+        }
+        if (this.component.storeas === 'string') {
+          return super.normalizeValue(value.join(this.delimiter || ''), flags);
+        }
+        return super.normalizeValue(value[0] || emptyValue, flags);
+      } else {
+        return super.normalizeValue(value, flags);
+      }
     }
-    return parent;
+  }
+
+  get dataValue() {
+    return this.normalizeValue(super.dataValue);
   }
 
   set dataValue(value) {
@@ -17,7 +52,6 @@ export default class Multivalue extends Field {
 
   get defaultValue() {
     let value = super.defaultValue;
-
     if (this.component.multiple) {
       if (_.isArray(value)) {
         value = !value.length ? [super.emptyValue] : value;
@@ -26,7 +60,6 @@ export default class Multivalue extends Field {
         value = [value];
       }
     }
-
     return value;
   }
 
@@ -34,37 +67,26 @@ export default class Multivalue extends Field {
     return this.t(this.component.addAnother || 'Add Another');
   }
 
-  useWrapper() {
-    return this.component.hasOwnProperty('multiple') && this.component.multiple;
-  }
-
   /**
    * @returns {Field} - The created field.
    */
   render() {
-    // If single value field.
-    if (!this.useWrapper()) {
-      return super.render(
-        `<div ${this._referenceAttributeName}="element">
-          ${this.renderElement(
-            this.component.type !== 'hidden' ? this.dataValue : ''
-          )}
-        </div>`
-      );
-    }
-
-    // Make sure dataValue is in the correct array format.
-    let dataValue = this.dataValue;
-    if (!Array.isArray(dataValue)) {
-      dataValue = dataValue ? [dataValue] : [];
-    }
-
-    // If multiple value field.
-    return super.render(this.renderTemplate('multiValueTable', {
-      rows: dataValue.map(this.renderRow.bind(this)).join(''),
-      disabled: this.disabled,
-      addAnother: this.addAnother,
-    }));
+    let dataValue = this.normalizeValue(this.dataValue);
+    return this.component.hasOwnProperty('multiple') && this.component.multiple
+      ? super.render(
+          this.renderTemplate('multiValueTable', {
+            rows: dataValue.map(this.renderRow.bind(this)).join(''),
+            disabled: this.disabled,
+            addAnother: this.addAnother,
+          })
+        )
+      : super.render(
+          `<div ${this._referenceAttributeName}="element">
+            ${this.renderElement(
+              this.component.type !== 'hidden' ? dataValue : ''
+            )}
+          </div>`
+        );
   }
 
   renderElement() {

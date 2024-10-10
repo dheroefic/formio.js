@@ -1259,6 +1259,10 @@ export default class Webform extends NestedDataComponent {
             errors = [errors];
         }
 
+        if (Array.isArray(this.errors)) {
+            errors = _.union(errors, this.errors);
+        }
+
         errors = errors.concat(this.customErrors).filter((err) => !!err);
 
         if (!errors.length) {
@@ -1419,7 +1423,12 @@ export default class Webform extends NestedDataComponent {
     onChange(flags, changed, modified, changes) {
         flags = flags || {};
         let isChangeEventEmitted = false;
-        super.onChange(flags, true);
+        if (this.parent?.subForm === this) {
+          super.onChange({ ...flags, modified }, false);
+        }
+        else {
+          super.onChange(flags, true);
+        }
         const value = _.clone(this.submission);
         flags.changed = value.changed = changed;
         flags.changes = changes;
@@ -1431,12 +1440,16 @@ export default class Webform extends NestedDataComponent {
         this.checkData(value.data, flags);
         const shouldValidate =
             !flags.noValidate ||
-            flags.fromIFrame ||
+            flags.fromIframe ||
             (flags.fromSubmission && this.rootPristine && this.pristine && flags.changed);
         const errors = shouldValidate
-            ? this.validate(value.data, { ...flags, process: "change" })
+            ? this.validate(value.data, {
+                ...flags,
+                noValidate: false,
+                process: 'change'
+            })
             : [];
-        value.isValid = errors.length === 0;
+        value.isValid = (errors || []).filter(err => !err.fromServer).length === 0;
 
         this.loading = false;
         if (this.submitted) {

@@ -100,6 +100,17 @@ export default class AddressComponent extends ContainerComponent {
     };
   }
 
+  static get serverConditionSettings() {
+    return AddressComponent.conditionOperatorsSettings;
+  }
+
+  static get conditionOperatorsSettings() {
+    return {
+      ...super.conditionOperatorsSettings,
+      operators: ['isEmpty', 'isNotEmpty'],
+    };
+  }
+
   mergeSchema(component = {}) {
     let { defaultSchema } = this;
 
@@ -222,7 +233,7 @@ export default class AddressComponent extends ContainerComponent {
   }
 
   set address(value) {
-    if (this.manualModeEnabled && !this.isMultiple) {
+    if (this.manualModeEnabled && !this.isMultiple && !_.isEqual(value, this.emptyValue)) {
       this.dataValue.address = value;
     }
     else {
@@ -246,6 +257,18 @@ export default class AddressComponent extends ContainerComponent {
 
   isValueInLegacyFormat(value) {
     return value && !value.mode;
+  }
+
+  set dataValue(value) {
+    super.dataValue = value
+  }
+
+  get dataValue() {
+    const resultValue = _.get(this._data, this.component.path);
+    if (!_.isArray(resultValue) && this.component.multiple) {
+      return [resultValue]
+    }
+    return super.dataValue;
   }
 
   normalizeValue(value) {
